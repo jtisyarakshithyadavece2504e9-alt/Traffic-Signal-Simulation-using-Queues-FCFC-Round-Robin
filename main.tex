@@ -1,0 +1,695 @@
+\documentclass[12pt,a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{enumitem}
+\usepackage{parskip}
+
+% ── Hyperref setup ─────────────────────────────────────────────────────────────
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+% ── Code listing style ─────────────────────────────────────────────────────────
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{codeframe}{RGB}{180,180,180}
+\definecolor{keyword}{RGB}{0,0,180}
+\definecolor{comment}{RGB}{60,120,60}
+\definecolor{string}{RGB}{163,21,21}
+
+\lstset{
+    language=C,
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeframe},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{keyword}\bfseries,
+    commentstyle=\color{comment}\itshape,
+    stringstyle=\color{string},
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    stepnumber=1,
+    numbersep=8pt,
+    tabsize=4,
+    breaklines=true,
+    breakatwhitespace=false,
+    showspaces=false,
+    showstringspaces=false,
+    captionpos=b
+}
+
+% ── Section formatting ─────────────────────────────────────────────────────────
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+
+% ── Header / Footer ───────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Traffic Signal Implementation Using Queues}
+\fancyhead[R]{\small MGIT -- ECE Dept.}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{document}
+
+% ── Title Page ────────────────────────────────────────────────────────────────
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+
+    {\large \textbf{A Laboratory Project Report}}\\[0.4cm]
+    {\normalsize on}\\[0.8cm]
+
+    {\LARGE \textbf{Traffic Signal Implementation\\[0.3cm] Using Queues (FCFS \& Round Robin)}}\\[1.2cm]
+
+    {\normalsize Submitted to the \textbf{Programming for Problem Solving Laboratory}}\\[0.4cm]
+    {\normalsize by}\\[0.8cm]
+
+    \begin{tabular}{ll}
+        \textbf{J. Tisya Rakshith}& \textbf{(25261A04E9)}\\[0.3cm]
+        \textbf{B. Akshaya Reddy}& \textbf{(25261A04D7)}\\[0.3cm]
+        \textbf{Mahammad Sania}& \textbf{(25261A04G0)}\\
+    \end{tabular}
+
+    \vspace{1cm}
+    {\normalsize \textbf{Course Instructors}}\\[0.3cm]
+    {\normalsize Dr. Y. Praveen Kumar Reddy}\\
+    {\normalsize Dr. M. Sanjeev Kumar / Mr. Anurag Chakraborty / Ms. M. Vishwaja}\\[1.2cm]
+
+    % Replace with actual logo file: \includegraphics[width=3cm]{mgit_logo.png}
+    \fbox{\parbox{2.8cm}{\centering\vspace{0.6cm}\small MGIT Logo\vspace{0.6cm}}}\\[1cm]
+
+    {\large \textbf{Department of Electronics and Communication Engineering}}\\[0.4cm]
+    {\normalsize Mahatma Gandhi Institute of Technology (Autonomous)}\\
+    {\normalsize Chaitanya Bharathi P.O., Gandipeta, Hyderabad-500075.}\\[0.8cm]
+    {\large \textbf{2025}}
+\end{titlepage}
+
+% ── Table of Contents ─────────────────────────────────────────────────────────
+\newpage
+\tableofcontents
+\newpage
+
+% ── Abstract ──────────────────────────────────────────────────────────────────
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+
+Traffic signal control is a classical real-time scheduling problem that can be modelled effectively using queue-based data structures. This project implements a traffic signal simulation in C that manages vehicle flow at a four-way intersection using two scheduling strategies: \textbf{First-Come-First-Served (FCFS)} and \textbf{Round Robin (RR)}. 
+
+Vehicles are represented as queue elements, each holding a unique identifier and a required crossing time. The signal cycle—Red (5 s) $\rightarrow$ Yellow (5 s) $\rightarrow$ Green (45 s)—is enforced in software, and vehicles are dispatched during the green phase according to the selected algorithm. FCFS processes vehicles in arrival order without preemption, while Round Robin introduces a time quantum (2 s) to allow fair, interleaved service.
+
+The simulation demonstrates how queue operations (enqueue / dequeue) directly map to vehicle arrival and departure, and highlights the trade-offs between throughput (FCFS) and fairness (Round Robin) in a real-time control context.
+
+\newpage
+
+% ── 1. Introduction & Motivation ──────────────────────────────────────────────
+\section{Introduction \& Motivation}
+
+\subsection{Background}
+Urban traffic management is one of the most computationally studied real-world optimisation problems. At a signalised intersection, vehicles must be served in an orderly, fair, and efficient manner. The challenge resembles CPU process scheduling: multiple entities (vehicles / processes) compete for a shared resource (the intersection / CPU), and the order in which they are served determines key performance metrics such as throughput, average waiting time, and starvation risk.
+
+\subsection{Motivation}
+\begin{itemize}[leftmargin=1.5cm]
+    \item \textbf{Queue as a data structure:} Traffic lanes naturally exhibit FIFO behaviour—vehicles queue up and are served in the order they arrive.
+    \item \textbf{Scheduling analogy:} The two algorithms (FCFS and Round Robin) are foundational CPU-scheduling algorithms; applying them to traffic provides tangible, visual intuition for their behaviour.
+    \item \textbf{Practical relevance:} Embedded or microcontroller-based traffic controllers often rely on simple queue-driven logic similar to what is implemented here.
+\end{itemize}
+
+\subsection{Objectives}
+\begin{enumerate}[leftmargin=1.5cm]
+    \item Implement a circular queue in C capable of holding vehicle records.
+    \item Simulate a three-phase signal cycle (Red, Yellow, Green) using software timers.
+    \item Process queued vehicles using FCFS during the green window.
+    \item Process queued vehicles using Round Robin with a fixed time quantum during the green window.
+    \item Compare the behaviour of both approaches with respect to fairness and throughput.
+\end{enumerate}
+
+\newpage
+
+% ── 2. Design & Algorithms ────────────────────────────────────────────────────
+\section{Design \& Algorithms}
+
+\subsection{Data Structures}
+
+\subsubsection{Vehicle Record}
+Each vehicle is stored as a \texttt{struct} containing:
+\begin{itemize}
+    \item \texttt{id} -- unique integer identifier.
+    \item \texttt{remainingTime} -- time (seconds) required to cross / complete service.
+\end{itemize}
+
+\subsubsection{Queue}
+A static array-based linear queue of capacity \texttt{MAX = 100} stores vehicle records. The queue supports the standard operations listed in Table~\ref{tab:queueops}.
+
+\begin{table}[H]
+\centering
+\caption{Queue Operations}
+\label{tab:queueops}
+\begin{tabular}{lll}
+\toprule
+\textbf{Operation} & \textbf{Description} & \textbf{Time Complexity} \\
+\midrule
+\texttt{initQueue} & Set front and rear to $-1$ & $O(1)$ \\
+\texttt{isEmpty}   & Check if front $= -1$       & $O(1)$ \\
+\texttt{enqueue}   & Insert vehicle at rear       & $O(1)$ \\
+\texttt{dequeue}   & Remove vehicle from front    & $O(1)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Signal Cycle}
+
+The \texttt{signalCycle()} function models one complete traffic-light phase:
+
+\begin{enumerate}
+    \item \textbf{Red} -- 5 seconds (vehicles stop).
+    \item \textbf{Yellow} -- 5 seconds (prepare to move).
+    \item \textbf{Green} -- 45 seconds (vehicles cross; scheduling begins).
+\end{enumerate}
+
+Total cycle duration: $5 + 5 + 45 = 55$ seconds.
+
+\subsection{Algorithm 1 -- First-Come-First-Served (FCFS)}
+
+FCFS is a non-preemptive scheduling strategy. Once a vehicle begins crossing, it is not interrupted until its \texttt{remainingTime} expires or the green window closes.
+
+\begin{algorithm}[H]
+\caption{FCFS Traffic Signal Scheduling}
+\label{alg:fcfs}
+\begin{algorithmic}[1]
+\While{queue is not empty}
+    \State \Call{signalCycle}{}  \Comment{Red $\to$ Yellow $\to$ Green}
+    \State $t_{start} \leftarrow$ current clock time
+    \While{elapsed time $< 45\,\text{s}$ \textbf{and} queue not empty}
+        \State $v \leftarrow$ \Call{dequeue}{queue}
+        \State \textbf{print} "Vehicle $v.id$ crossing\ldots"
+        \State \Call{sleep}{$v.remainingTime$}
+        \State \textbf{print} "Vehicle $v.id$ crossed"
+    \EndWhile
+    \State \textbf{print} "Green ended. Remaining vehicles wait."
+\EndWhile
+\State \textbf{print} "All vehicles completed (FCFS)."
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{Properties:}
+\begin{itemize}
+    \item Simple and easy to implement.
+    \item Optimal for a single lane with homogeneous crossing times.
+    \item Vehicles with long crossing times can block shorter ones (convoy effect).
+\end{itemize}
+
+\subsection{Algorithm 2 -- Round Robin (RR)}
+
+Round Robin introduces a \textbf{time quantum} ($Q = 2$ seconds). Each vehicle is given at most $Q$ seconds per turn. If its \texttt{remainingTime} exceeds $Q$, it is re-enqueued with the remainder.
+
+\begin{algorithm}[H]
+\caption{Round Robin Traffic Signal Scheduling}
+\label{alg:rr}
+\begin{algorithmic}[1]
+\Require Time quantum $Q = 2$ s
+\While{queue is not empty}
+    \State \Call{signalCycle}{}  \Comment{Red $\to$ Yellow $\to$ Green}
+    \State $t_{start} \leftarrow$ current clock time
+    \While{elapsed time $< 45\,\text{s}$ \textbf{and} queue not empty}
+        \State $v \leftarrow$ \Call{dequeue}{queue}
+        \If{$v.remainingTime > Q$}
+            \State \textbf{print} "Vehicle $v.id$ running for $Q$ s"
+            \State \Call{sleep}{$Q$}
+            \State $v.remainingTime \leftarrow v.remainingTime - Q$
+            \State \Call{enqueue}{queue, $v$}  \Comment{Re-enqueue with remainder}
+        \Else
+            \State \textbf{print} "Vehicle $v.id$ finishing\ldots"
+            \State \Call{sleep}{$v.remainingTime$}
+            \State \textbf{print} "Vehicle $v.id$ completed"
+        \EndIf
+    \EndWhile
+    \State \textbf{print} "Green ended. Remaining vehicles wait."
+\EndWhile
+\State \textbf{print} "All vehicles completed (Round Robin)."
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{Properties:}
+\begin{itemize}
+    \item Prevents any single vehicle from monopolising the green phase.
+    \item Provides fairness -- every vehicle makes progress each cycle.
+    \item Overhead from context-switching (re-enqueue) may reduce throughput.
+\end{itemize}
+
+\newpage
+
+% ── 3. Implementation Details ─────────────────────────────────────────────────
+\section{Implementation Details}
+
+\subsection{Language \& Platform}
+\begin{itemize}
+    \item \textbf{Language:} C (C99 standard)
+    \item \textbf{Platform:} Windows (uses \texttt{windows.h} for \texttt{Sleep()} and \texttt{GetTickCount()})
+    \item \textbf{Compiler:} GCC / MinGW or MSVC
+\end{itemize}
+
+\subsection{Key Functions}
+
+\begin{table}[H]
+\centering
+\caption{Function Summary}
+\begin{tabular}{lp{8cm}}
+\toprule
+\textbf{Function} & \textbf{Description} \\
+\midrule
+\texttt{initQueue()} & Initialises queue by setting front and rear to $-1$. \\
+\texttt{isEmpty()} & Returns 1 if the queue has no elements. \\
+\texttt{enqueue()} & Adds a vehicle to the rear; ignores overflow silently. \\
+\texttt{dequeue()} & Removes and returns the front vehicle; returns a sentinel ($\texttt{id}=-1$) on underflow. \\
+\texttt{signalCycle()} & Prints signal states with actual delays using \texttt{Sleep()}. \\
+\texttt{fcfs()} & Runs the FCFS scheduling loop over the queue. \\
+\texttt{roundRobin()} & Runs the Round Robin loop with quantum $Q=2$. \\
+\texttt{main()} & Reads $n$ vehicles, selects algorithm, populates queue, calls scheduler. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Complete Source Code}
+
+\begin{lstlisting}[caption={Traffic Signal Simulation -- Full C Source}, label={lst:fullcode}]
+#include <stdio.h>
+#include <stdlib.h>
+#include <windows.h>
+
+#define MAX 100
+
+typedef struct {
+    int id;
+    int remainingTime;
+} Vehicle;
+
+typedef struct {
+    Vehicle data[MAX];
+    int front, rear;
+} Queue;
+
+/* ---- Queue Operations ---- */
+
+void initQueue(Queue *q) {
+    q->front = q->rear = -1;
+}
+
+int isEmpty(Queue *q) {
+    return (q->front == -1);
+}
+
+void enqueue(Queue *q, Vehicle v) {
+    if (q->rear == MAX - 1) return;   /* overflow guard */
+    if (q->front == -1)
+        q->front = 0;
+    q->rear++;
+    q->data[q->rear] = v;
+}
+
+Vehicle dequeue(Queue *q) {
+    Vehicle temp;
+    temp.id = -1;
+    if (isEmpty(q))
+        return temp;
+    temp = q->data[q->front];
+    if (q->front == q->rear)
+        q->front = q->rear = -1;
+    else
+        q->front++;
+    return temp;
+}
+
+/* ---- Signal Cycle ---- */
+
+void signalCycle() {
+    printf("\n RED    - STOP    (5 sec)\n");
+    Sleep(5000);
+    printf(  " YELLOW - PREPARE (5 sec)\n");
+    Sleep(5000);
+    printf(  " GREEN  - GO      (45 sec)\n");
+}
+
+/* ---- FCFS Scheduler ---- */
+
+void fcfs(Queue *q) {
+    while (!isEmpty(q)) {
+        signalCycle();
+        DWORD startTime = GetTickCount();
+        while ((GetTickCount() - startTime < 45000) && !isEmpty(q)) {
+            Vehicle v = dequeue(q);
+            printf("  Vehicle %d crossing...\n", v.id);
+            Sleep(v.remainingTime * 1000);
+            printf("  Vehicle %d crossed\n", v.id);
+        }
+        printf(" Green ended. Remaining vehicles wait.\n");
+    }
+    printf("\n All vehicles completed (FCFS).\n");
+}
+
+/* ---- Round Robin Scheduler ---- */
+
+void roundRobin(Queue *q, int timeQuantum) {
+    while (!isEmpty(q)) {
+        signalCycle();
+        DWORD startTime = GetTickCount();
+        while ((GetTickCount() - startTime < 45000) && !isEmpty(q)) {
+            Vehicle v = dequeue(q);
+            if (v.remainingTime > timeQuantum) {
+                printf("  Vehicle %d running for %d sec\n",
+                       v.id, timeQuantum);
+                Sleep(timeQuantum * 1000);
+                v.remainingTime -= timeQuantum;
+                enqueue(q, v);          /* re-enqueue with remainder */
+            } else {
+                printf("  Vehicle %d finishing...\n", v.id);
+                Sleep(v.remainingTime * 1000);
+                printf("  Vehicle %d completed\n", v.id);
+            }
+        }
+        printf(" Green ended. Remaining vehicles wait.\n");
+    }
+    printf("\n All vehicles completed (Round Robin).\n");
+}
+
+/* ---- Main ---- */
+
+int main() {
+    Queue q;
+    initQueue(&q);
+    int n, choice;
+
+    printf("Enter number of vehicles: ");
+    scanf("%d", &n);
+
+    printf("\nChoose Scheduling Method:\n");
+    printf("  1. FCFS\n");
+    printf("  2. Round Robin\n");
+    printf("Enter choice: ");
+    scanf("%d", &choice);
+
+    for (int i = 0; i < n; i++) {
+        Vehicle v;
+        printf("Enter Vehicle ID: ");
+        scanf("%d", &v.id);
+        if (choice == 1) {
+            printf("Enter crossing time (seconds): ");
+            scanf("%d", &v.remainingTime);
+        } else {
+            v.remainingTime = 2;   /* fixed quantum for RR input */
+        }
+        enqueue(&q, v);
+    }
+
+    if      (choice == 1) fcfs(&q);
+    else if (choice == 2) roundRobin(&q, 2);
+    else    printf("Invalid Choice!\n");
+
+    return 0;
+}
+\end{lstlisting}
+
+\newpage
+
+% ── 4. Test Plan & Results ────────────────────────────────────────────────────
+\section{Test Plan \& Results}
+
+\subsection{Test Cases}
+
+\begin{table}[H]
+\centering
+\caption{Test Cases for FCFS Scheduling}
+\label{tab:fcfs-test}
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Test \#} & \textbf{Vehicles (n)} & \textbf{IDs} & \textbf{Crossing Times (s)} & \textbf{Expected Outcome} \\
+\midrule
+TC-F1 & 3 & 1, 2, 3 & 10, 15, 8     & All served in one green phase \\
+TC-F2 & 2 & 1, 2    & 40, 10        & V1 served; V2 waits for next cycle \\
+TC-F3 & 1 & 1       & 5             & V1 crosses; no remaining vehicles \\
+TC-F4 & 5 & 1--5    & 5, 6, 7, 8, 9 & V1--V4 in first green; V5 in next \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Test Cases for Round Robin Scheduling}
+\label{tab:rr-test}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Test \#} & \textbf{Vehicles (n)} & \textbf{IDs} & \textbf{Expected Outcome} \\
+\midrule
+TC-R1 & 3 & 1, 2, 3 & Each vehicle gets 2 s per turn; all complete in first green \\
+TC-R2 & 5 & 1--5    & Interleaved execution; all complete within two green phases \\
+TC-R3 & 1 & 1       & Single vehicle: completes in first turn \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Sample Execution (FCFS -- TC-F1)}
+
+\begin{verbatim}
+Enter number of vehicles: 3
+Choose Scheduling Method:
+  1. FCFS
+  2. Round Robin
+Enter choice: 1
+Enter Vehicle ID: 1
+Enter crossing time (seconds): 10
+Enter Vehicle ID: 2
+Enter crossing time (seconds): 15
+Enter Vehicle ID: 3
+Enter crossing time (seconds): 8
+
+ RED    - STOP    (5 sec)
+ YELLOW - PREPARE (5 sec)
+ GREEN  - GO      (45 sec)
+  Vehicle 1 crossing...
+  Vehicle 1 crossed
+  Vehicle 2 crossing...
+  Vehicle 2 crossed
+  Vehicle 3 crossing...
+  Vehicle 3 crossed
+ Green ended. Remaining vehicles wait.
+
+ All vehicles completed (FCFS).
+\end{verbatim}
+
+\subsection{Sample Execution (Round Robin -- TC-R1)}
+
+\begin{verbatim}
+Enter number of vehicles: 3
+Choose Scheduling Method:
+  1. FCFS
+  2. Round Robin
+Enter choice: 2
+Enter Vehicle ID: 1
+Enter Vehicle ID: 2
+Enter Vehicle ID: 3
+
+ RED    - STOP    (5 sec)
+ YELLOW - PREPARE (5 sec)
+ GREEN  - GO      (45 sec)
+  Vehicle 1 running for 2 sec
+  Vehicle 2 running for 2 sec
+  Vehicle 3 running for 2 sec
+  ...
+  Vehicle 1 completed
+  Vehicle 2 completed
+  Vehicle 3 completed
+ Green ended. Remaining vehicles wait.
+
+ All vehicles completed (Round Robin).
+\end{verbatim}
+
+\newpage
+
+% ── 5. Analysis & Discussion ──────────────────────────────────────────────────
+\section{Analysis \& Discussion}
+
+\subsection{Comparison of Scheduling Algorithms}
+
+\begin{table}[H]
+\centering
+\caption{FCFS vs Round Robin -- Qualitative Comparison}
+\begin{tabular}{lll}
+\toprule
+\textbf{Criterion}           & \textbf{FCFS}                          & \textbf{Round Robin} \\
+\midrule
+Scheduling type              & Non-preemptive                         & Preemptive \\
+Fairness                     & Low (long vehicles block others)       & High (equal quantum per turn) \\
+Throughput (short jobs)      & Can be poor (convoy effect)            & Good \\
+Implementation complexity    & Very simple                            & Moderate \\
+Starvation                   & Possible for short-time vehicles       & None (every vehicle progresses) \\
+Suitable for                 & Homogeneous traffic                    & Mixed crossing times \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Time Complexity}
+Both algorithms perform exactly one \texttt{enqueue} and one \texttt{dequeue} per vehicle per service turn, giving $O(1)$ per operation and $O(n)$ overall for $n$ vehicles.
+
+\subsection{Space Complexity}
+The queue uses a static array of size \texttt{MAX = 100}, so space complexity is $O(\text{MAX})$ regardless of the number of vehicles actually inserted.
+
+\subsection{Limitations}
+\begin{itemize}
+    \item The implementation uses \texttt{windows.h} (\texttt{Sleep}, \texttt{GetTickCount}); it is not portable to Linux/macOS without substituting \texttt{usleep} / \texttt{clock\_gettime}.
+    \item The static array queue cannot grow beyond 100 vehicles.
+    \item Timing is real-time (actual \texttt{Sleep} calls), making automated testing slow; a simulation mode with virtual time would be preferable.
+    \item Round Robin input assigns a fixed \texttt{remainingTime = 2} to all vehicles, effectively reducing all vehicles to the quantum; variable burst times should be supported.
+\end{itemize}
+
+\newpage
+
+% ── 6. Conclusion & Future Work ───────────────────────────────────────────────
+\section{Conclusion \& Future Work}
+
+\subsection{Conclusion}
+This project successfully implements and demonstrates two queue-based scheduling strategies—FCFS and Round Robin—applied to a traffic signal simulation. The queue data structure maps naturally onto the problem domain (vehicles waiting in a lane), and the two algorithms illustrate the fundamental trade-off between simplicity/throughput (FCFS) and fairness (Round Robin).
+
+Key takeaways:
+\begin{itemize}
+    \item Queue operations (\texttt{enqueue}/\texttt{dequeue}) model vehicle arrival and departure with $O(1)$ efficiency.
+    \item FCFS is optimal when all vehicles have similar crossing times.
+    \item Round Robin prevents starvation and is preferable in heterogeneous traffic scenarios.
+    \item The traffic signal analogy makes abstract scheduling concepts concrete and intuitive.
+\end{itemize}
+
+\subsection{Future Work}
+\begin{enumerate}
+    \item \textbf{Multi-lane simulation:} Extend to four independent queues representing a four-way intersection, with priority signals.
+    \item \textbf{Priority scheduling:} Add a priority field to the Vehicle struct for emergency vehicles (ambulances, fire trucks).
+    \item \textbf{Dynamic time quantum:} Adjust the Round Robin quantum based on real-time queue length.
+    \item \textbf{Cross-platform portability:} Replace \texttt{windows.h} with POSIX-compliant timing functions.
+    \item \textbf{Graphical interface:} Visualise the intersection and vehicle movement using a library such as SDL2 or SFML.
+    \item \textbf{Statistical analysis:} Log average waiting time, throughput, and utilisation for each algorithm and compare quantitatively.
+\end{enumerate}
+
+\newpage
+
+% ── 7. Appendix & Code Snippets ───────────────────────────────────────────────
+\section{Appendix \& Code Snippets}
+
+\subsection{A. Queue Initialisation and Helper Functions}
+
+\begin{lstlisting}[caption={Queue struct and core operations}]
+typedef struct {
+    int id;
+    int remainingTime;
+} Vehicle;
+
+typedef struct {
+    Vehicle data[MAX];
+    int front, rear;
+} Queue;
+
+void initQueue(Queue *q) { q->front = q->rear = -1; }
+
+int isEmpty(Queue *q) { return (q->front == -1); }
+
+void enqueue(Queue *q, Vehicle v) {
+    if (q->rear == MAX - 1) return;
+    if (q->front == -1) q->front = 0;
+    q->data[++q->rear] = v;
+}
+
+Vehicle dequeue(Queue *q) {
+    Vehicle temp; temp.id = -1;
+    if (isEmpty(q)) return temp;
+    temp = q->data[q->front];
+    if (q->front == q->rear) q->front = q->rear = -1;
+    else q->front++;
+    return temp;
+}
+\end{lstlisting}
+
+\subsection{B. Signal Cycle Function}
+
+\begin{lstlisting}[caption={Signal cycle with real-time delays}]
+void signalCycle() {
+    printf("\n RED    - STOP    (5 sec)\n"); Sleep(5000);
+    printf(  " YELLOW - PREPARE (5 sec)\n"); Sleep(5000);
+    printf(  " GREEN  - GO      (45 sec)\n");
+}
+\end{lstlisting}
+
+\subsection{C. FCFS Core Loop}
+
+\begin{lstlisting}[caption={FCFS green-phase dispatch loop}]
+signalCycle();
+DWORD startTime = GetTickCount();
+while ((GetTickCount() - startTime < 45000) && !isEmpty(q)) {
+    Vehicle v = dequeue(q);
+    printf("  Vehicle %d crossing...\n", v.id);
+    Sleep(v.remainingTime * 1000);
+    printf("  Vehicle %d crossed\n", v.id);
+}
+\end{lstlisting}
+
+\subsection{D. Round Robin Core Loop}
+
+\begin{lstlisting}[caption={Round Robin green-phase dispatch loop}]
+signalCycle();
+DWORD startTime = GetTickCount();
+while ((GetTickCount() - startTime < 45000) && !isEmpty(q)) {
+    Vehicle v = dequeue(q);
+    if (v.remainingTime > timeQuantum) {
+        Sleep(timeQuantum * 1000);
+        v.remainingTime -= timeQuantum;
+        enqueue(q, v);          /* partial -- re-enqueue */
+    } else {
+        Sleep(v.remainingTime * 1000);
+        printf("  Vehicle %d completed\n", v.id);
+    }
+}
+\end{lstlisting}
+
+\subsection{E. Compilation Instructions}
+
+\begin{verbatim}
+# Windows (MinGW):
+gcc -o traffic_signal traffic_signal.c -lwinmm -Wall
+
+# Run:
+traffic_signal.exe
+\end{verbatim}
+
+\newpage
+
+% ── References ────────────────────────────────────────────────────────────────
+\section*{References}
+\addcontentsline{toc}{section}{References}
+
+\begin{enumerate}
+    \item Cormen, T. H., Leiserson, C. E., Rivest, R. L., \& Stein, C. (2009). \textit{Introduction to Algorithms} (3rd ed.). MIT Press.
+    \item Silberschatz, A., Galvin, P. B., \& Gagne, G. (2018). \textit{Operating System Concepts} (10th ed.). Wiley. [CPU scheduling chapter -- FCFS and Round Robin algorithms.]
+    \item Kernighan, B. W., \& Ritchie, D. M. (1988). \textit{The C Programming Language} (2nd ed.). Prentice Hall.
+    \item Microsoft Docs. \textit{GetTickCount function (sysinfoapi.h)}. \url{https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-gettickcount}
+    \item GeeksforGeeks. \textit{Queue Data Structure}. \url{https://www.geeksforgeeks.org/queue-data-structure/}
+    \item GeeksforGeeks. \textit{Round Robin Scheduling Algorithm}. \url{https://www.geeksforgeeks.org/program-round-robin-scheduling-set-1/}
+\end{enumerate}
+
+\end{document}
